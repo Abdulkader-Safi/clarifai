@@ -9,7 +9,27 @@ let isLoading = false;
 let currentExplanation = "";
 let currentMode = "explain";
 
-// Request models on load
+// --- Template helpers ---
+
+function cloneTemplate(id) {
+  const tpl = document.getElementById(id);
+  return tpl.content.cloneNode(true);
+}
+
+function attachCollapsibleToggle(container) {
+  const headers = container.querySelectorAll
+    ? container.querySelectorAll("[data-section]")
+    : [];
+  for (const header of headers) {
+    header.addEventListener("click", () => {
+      const sectionId = header.getAttribute("data-section");
+      toggleCollapsible(sectionId);
+    });
+  }
+}
+
+// --- Init ---
+
 vscode.postMessage({ type: "loadModels" });
 
 modelSelect.addEventListener("change", (e) => {
@@ -33,7 +53,11 @@ explainButton.addEventListener("click", () => {
 });
 
 refreshModels.addEventListener("click", () => {
-  modelSelect.innerHTML = '<option value="">Loading models...</option>';
+  modelSelect.innerHTML = "";
+  const opt = document.createElement("option");
+  opt.value = "";
+  opt.textContent = "Loading models...";
+  modelSelect.appendChild(opt);
   modelSelect.disabled = true;
   vscode.postMessage({ type: "loadModels" });
 });
@@ -47,9 +71,15 @@ window.addEventListener("message", (event) => {
       modelSelect.disabled = false;
 
       if (message.models.length === 0) {
-        modelSelect.innerHTML = '<option value="">No models found</option>';
-        content.innerHTML =
-          '<div class="empty-state">No Ollama models found. Make sure Ollama is running and you have models installed.</div>';
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No models found";
+        modelSelect.appendChild(opt);
+
+        const fragment = cloneTemplate("tpl-empty-state");
+        fragment.querySelector(".empty-state").textContent =
+          "No Ollama models found. Make sure Ollama is running and you have models installed.";
+        content.appendChild(fragment);
       } else {
         for (const model of message.models) {
           const option = document.createElement("option");
@@ -57,7 +87,6 @@ window.addEventListener("message", (event) => {
           option.textContent = model;
           modelSelect.appendChild(option);
         }
-        // Auto-select first model
         if (modelSelect.value) {
           vscode.postMessage({
             type: "modelSelected",
@@ -67,34 +96,28 @@ window.addEventListener("message", (event) => {
       }
       break;
 
-    case "codeContext":
-      content.innerHTML = `
-				<div class="collapsible">
-					<div class="collapsible-header" onclick="toggleCollapsible('code-section')">
-						<div class="collapsible-title">
-							<span class="collapsible-icon" id="code-section-icon">▼</span>
-							<span>Selected Code (${message.language})</span>
-						</div>
-					</div>
-					<div class="collapsible-content" id="code-section-content">
-						<pre><code class="language-${message.language}">${escapeHtml(
-        message.code
-      )}</code></pre>
-					</div>
-				</div>
-			`;
-      // Apply syntax highlighting
+    case "codeContext": {
+      content.innerHTML = "";
+      const fragment = cloneTemplate("tpl-code-collapsible");
+      fragment.querySelector("[data-slot='label']").textContent =
+        `Selected Code (${message.language})`;
+      const codeEl = fragment.querySelector("[data-slot='code']");
+      codeEl.className = `language-${message.language}`;
+      codeEl.textContent = message.code;
+      attachCollapsibleToggle(fragment);
+      content.appendChild(fragment);
+
       for (const block of document.querySelectorAll("pre code")) {
         hljs.highlightElement(block);
       }
       break;
+    }
 
     case "explanationStarted":
       isLoading = true;
       explainButton.disabled = true;
       currentExplanation = "";
-      content.innerHTML +=
-        '<div class="loading"><div class="spinner"></div><span>Analyzing code...</span></div>';
+      content.appendChild(cloneTemplate("tpl-loading"));
       break;
 
     case "explanationChunk":
@@ -109,13 +132,14 @@ window.addEventListener("message", (event) => {
       addResetButton();
       break;
 
-    case "explanationError":
+    case "explanationError": {
       isLoading = false;
       explainButton.disabled = false;
-      content.innerHTML += `<div class="error">Error: ${escapeHtml(
-        message.error
-      )}</div>`;
+      const fragment = cloneTemplate("tpl-error");
+      fragment.querySelector(".error").textContent = `Error: ${message.error}`;
+      content.appendChild(fragment);
       break;
+    }
   }
 });
 
@@ -128,33 +152,22 @@ function updateExplanation() {
   let existingCollapsible = document.getElementById("explanation-collapsible");
 
   if (!existingCollapsible && currentExplanation) {
-    existingCollapsible = document.createElement("div");
-    existingCollapsible.id = "explanation-collapsible";
-    existingCollapsible.className = "collapsible";
-    existingCollapsible.innerHTML = `
-			<div class="collapsible-header" onclick="toggleCollapsible('explanation-section')">
-				<div class="collapsible-title">
-					<span class="collapsible-icon" id="explanation-section-icon">▼</span>
-					<span>Analysis Result</span>
-				</div>
-			</div>
-			<div class="collapsible-content" id="explanation-section-content">
-				<div class="explanation" id="explanation-text"></div>
-			</div>
-		`;
-    content.appendChild(existingCollapsible);
+    const fragment = cloneTemplate("tpl-explanation-collapsible");
+    attachCollapsibleToggle(fragment);
+    content.appendChild(fragment);
+    existingCollapsible = document.getElementById("explanation-collapsible");
   }
 
   const explanationText = document.getElementById("explanation-text");
   if (explanationText) {
-    // Parse markdown and highlight code blocks
+    // marked.parse output is rendered markdown — this is the only intentional
+    // use of innerHTML, required for rich markdown/code-highlight rendering.
     const htmlContent = parseMarkdownWithCodeHighlight(currentExplanation);
-    explanationText.innerHTML = htmlContent;
+    explanationText.innerHTML = htmlContent; // nosec: output of marked.parse
   }
 }
 
 function parseMarkdownWithCodeHighlight(text) {
-  // Configure marked.js for proper markdown rendering
   marked.setOptions({
     breaks: true,
     gfm: true,
@@ -170,23 +183,20 @@ function parseMarkdownWithCodeHighlight(text) {
     },
   });
 
-  // Parse markdown to HTML
-  const html = marked.parse(text);
-  return html;
+  return marked.parse(text);
 }
 
 function toggleCollapsible(sectionId) {
-  const content = document.getElementById(`${sectionId}-content`);
+  const sectionContent = document.getElementById(`${sectionId}-content`);
   const icon = document.getElementById(`${sectionId}-icon`);
 
-  if (content && icon) {
-    content.classList.toggle("collapsed");
+  if (sectionContent && icon) {
+    sectionContent.classList.toggle("collapsed");
     icon.classList.toggle("collapsed");
   }
 }
 
 function addResetButton() {
-  // Remove existing reset button if any
   const existingReset = document.getElementById("reset-button");
   if (existingReset) {
     existingReset.remove();
@@ -196,16 +206,10 @@ function addResetButton() {
   resetButton.id = "reset-button";
   resetButton.className = "reset-button";
   resetButton.textContent = "Reset & Analyze New Code";
-  resetButton.onclick = () => {
+  resetButton.addEventListener("click", () => {
     content.innerHTML = "";
     currentExplanation = "";
     explainButton.disabled = false;
-  };
+  });
   content.appendChild(resetButton);
-}
-
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }

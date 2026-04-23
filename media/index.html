@@ -27,7 +27,7 @@
       </div>
 
       <div class="section mode-selector">
-        <label style="margin-bottom: 8px">Analysis Mode</label>
+        <label class="mode-selector-label">Analysis Mode</label>
         <div class="mode-options">
           <div class="mode-option">
             <input
@@ -52,6 +52,49 @@
 
       <div id="content"></div>
     </div>
+
+    <template id="tpl-empty-state">
+      <div class="empty-state"></div>
+    </template>
+
+    <template id="tpl-loading">
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Analyzing code...</span>
+      </div>
+    </template>
+
+    <template id="tpl-error">
+      <div class="error"></div>
+    </template>
+
+    <template id="tpl-code-collapsible">
+      <div class="collapsible">
+        <div class="collapsible-header" data-section="code-section">
+          <div class="collapsible-title">
+            <span class="collapsible-icon" id="code-section-icon">▼</span>
+            <span data-slot="label"></span>
+          </div>
+        </div>
+        <div class="collapsible-content" id="code-section-content">
+          <pre><code data-slot="code"></code></pre>
+        </div>
+      </div>
+    </template>
+
+    <template id="tpl-explanation-collapsible">
+      <div class="collapsible" id="explanation-collapsible">
+        <div class="collapsible-header" data-section="explanation-section">
+          <div class="collapsible-title">
+            <span class="collapsible-icon" id="explanation-section-icon">▼</span>
+            <span>Analysis Result</span>
+          </div>
+        </div>
+        <div class="collapsible-content" id="explanation-section-content">
+          <div class="explanation" id="explanation-text"></div>
+        </div>
+      </div>
+    </template>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
