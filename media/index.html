@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src {{cspSource}} 'unsafe-inline' https://cdnjs.cloudflare.com;"
     />
-    <title>Ollama Code Explainer</title>
+    <title>ClarifAI</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
@@ -16,8 +16,9 @@
   </head>
   <body>
     <div class="container">
-      <div class="section">
-        <label for="modelSelect">Ollama Model</label>
+      <!-- Provider Section -->
+      <div class="section provider-section">
+        <label for="modelSelect">Select Model</label>
         <select id="modelSelect">
           <option value="">Loading models...</option>
         </select>
@@ -26,6 +27,55 @@
         </button>
       </div>
 
+      <!-- Add Custom Provider Section -->
+      <div class="section collapsible-section">
+        <div class="collapsible-header" id="addProviderToggle">
+          <span class="collapsible-icon" id="add-provider-icon">▶</span>
+          <span>Add Custom Model</span>
+        </div>
+        <div class="collapsible-content collapsed" id="addProviderSection">
+          <div class="form-group">
+            <label for="providerName">Name</label>
+            <input
+              type="text"
+              id="providerName"
+              placeholder="e.g., OpenAI GPT-4"
+            />
+          </div>
+          <div class="form-group">
+            <label for="providerUrl">API URL</label>
+            <input
+              type="text"
+              id="providerUrl"
+              placeholder="e.g., https://api.openai.com/v1"
+            />
+          </div>
+          <div class="form-group">
+            <label for="providerModel">Model Name</label>
+            <input
+              type="text"
+            id="providerModel"
+              placeholder="e.g., gpt-4, gpt-3.5-turbo"
+            />
+          </div>
+          <div class="form-group">
+            <label for="providerApiKey"
+              >API Key <span class="hint">(optional)</span></label
+            >
+            <input
+              type="password"
+              id="providerApiKey"
+              placeholder="sk-..."
+            />
+          </div>
+          <button class="secondary-button" id="addProviderButton">
+            Add Model
+          </button>
+          <div id="addProviderError" class="error-message hidden"></div>
+        </div>
+      </div>
+
+      <!-- Analysis Mode Section -->
       <div class="section mode-selector">
         <label class="mode-selector-label">Analysis Mode</label>
         <div class="mode-options">
@@ -40,19 +90,27 @@
             <label for="modeExplain">Explain Code</label>
           </div>
           <div class="mode-option">
-            <input type="radio" id="modeEnhance" name="mode" value="enhance" />
+            <input
+              type="radio"
+              id="modeEnhance"
+              name="mode"
+              value="enhance"
+            />
             <label for="modeEnhance">Suggest Enhancements</label>
           </div>
         </div>
       </div>
 
+      <!-- Analyze Button -->
       <div class="section">
         <button id="explainButton">Analyze Selected Code</button>
       </div>
 
+      <!-- Content Area -->
       <div id="content"></div>
     </div>
 
+    <!-- Templates -->
     <template id="tpl-empty-state">
       <div class="empty-state"></div>
     </template>
@@ -86,7 +144,9 @@
       <div class="collapsible" id="explanation-collapsible">
         <div class="collapsible-header" data-section="explanation-section">
           <div class="collapsible-title">
-            <span class="collapsible-icon" id="explanation-section-icon">▼</span>
+            <span class="collapsible-icon" id="explanation-section-icon"
+              >▼</span
+            >
             <span>Analysis Result</span>
           </div>
         </div>

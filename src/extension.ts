@@ -7,29 +7,29 @@ import { EXTENSION_CONSTANTS } from "./constants";
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log("Ollama Code Explainer extension is now active!");
+  // Use the console to output diagnostic information (console.log) and errors (console.error)
+  // This line of code will only be executed once when your extension is activated
+  console.log("ClarifAI extension is now active!");
 
-	// Register the webview panel provider
-	const provider = new WebviewPanelProvider(context.extensionUri);
+  // Register the webview panel provider
+  const provider = new WebviewPanelProvider(context.extensionUri, context);
 
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(
-			WebviewPanelProvider.viewType,
-			provider,
-		),
-	);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      WebviewPanelProvider.viewType,
+      provider,
+    ),
+  );
 
-	// Register the command to explain code
-	const explainCodeCommand = vscode.commands.registerCommand(
-		EXTENSION_CONSTANTS.COMMAND_ID,
-		() => {
-			provider.explainSelectedCode();
-		},
-	);
+  // Register the command to explain code
+  const explainCodeCommand = vscode.commands.registerCommand(
+    EXTENSION_CONSTANTS.COMMAND_ID,
+    () => {
+      provider.explainSelectedCode();
+    },
+  );
 
-	context.subscriptions.push(explainCodeCommand);
+  context.subscriptions.push(explainCodeCommand);
 }
 
 // This method is called when your extension is deactivated

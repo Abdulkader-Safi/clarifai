@@ -5,9 +5,21 @@ const refreshModels = document.getElementById("refreshModels");
 const content = document.getElementById("content");
 const modeRadios = document.querySelectorAll('input[name="mode"]');
 
+// Add Provider UI elements
+const addProviderToggle = document.getElementById("addProviderToggle");
+const addProviderSection = document.getElementById("addProviderSection");
+const addProviderButton = document.getElementById("addProviderButton");
+const providerNameInput = document.getElementById("providerName");
+const providerUrlInput = document.getElementById("providerUrl");
+const providerModelInput = document.getElementById("providerModel");
+const providerApiKeyInput = document.getElementById("providerApiKey");
+const addProviderError = document.getElementById("addProviderError");
+
 let isLoading = false;
 let currentExplanation = "";
 let currentMode = "explain";
+let currentModels = [];
+let selectedProviderId = "";
 
 // --- Template helpers ---
 
@@ -33,10 +45,17 @@ function attachCollapsibleToggle(container) {
 vscode.postMessage({ type: "loadModels" });
 
 modelSelect.addEventListener("change", (e) => {
-  vscode.postMessage({
-    type: "modelSelected",
-    model: e.target.value,
-  });
+  const selected = e.target.options[e.target.selectedIndex];
+  const providerId = selected.dataset.providerId;
+  const model = selected.dataset.model;
+  if (providerId && model) {
+    vscode.postMessage({
+      type: "modelSelected",
+      providerId: providerId,
+      model: model,
+    });
+    selectedProviderId = providerId;
+  }
 });
 
 for (const radio of modeRadios) {
@@ -62,38 +81,95 @@ refreshModels.addEventListener("click", () => {
   vscode.postMessage({ type: "loadModels" });
 });
 
+// Add Provider Section Toggle
+addProviderToggle.addEventListener("click", () => {
+  const icon = document.getElementById("add-provider-icon");
+  addProviderSection.classList.toggle("collapsed");
+  icon.classList.toggle("collapsed");
+});
+
+// Add Provider Button
+addProviderButton.addEventListener("click", () => {
+  const name = providerNameInput.value.trim();
+  const baseUrl = providerUrlInput.value.trim();
+  const model = providerModelInput.value.trim();
+  const apiKey = providerApiKeyInput.value.trim();
+
+  // Validation
+  if (!name || !baseUrl || !model) {
+    showAddProviderError("Please fill in all required fields");
+    return;
+  }
+
+  // Basic URL validation
+  if (!isValidUrl(baseUrl)) {
+    showAddProviderError("Please enter a valid URL (e.g., https://api.example.com/v1)");
+    return;
+  }
+
+  // Hide error
+  hideAddProviderError();
+
+  // Disable button while adding
+  addProviderButton.disabled = true;
+  addProviderButton.textContent = "Adding...";
+
+  // Send message to extension
+  vscode.postMessage({
+    type: "addProvider",
+    name,
+    baseUrl,
+    model,
+    apiKey: apiKey || undefined,
+  });
+});
+
+function isValidUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+}
+
+function showAddProviderError(message) {
+  addProviderError.textContent = message;
+  addProviderError.classList.remove("hidden");
+}
+
+function hideAddProviderError() {
+  addProviderError.classList.add("hidden");
+}
+
+function resetAddProviderForm() {
+  providerNameInput.value = "";
+  providerUrlInput.value = "";
+  providerModelInput.value = "";
+  providerApiKeyInput.value = "";
+  addProviderButton.disabled = false;
+  addProviderButton.textContent = "Add Model";
+  hideAddProviderError();
+}
+
 window.addEventListener("message", (event) => {
   const message = event.data;
 
   switch (message.type) {
     case "modelsLoaded":
-      modelSelect.innerHTML = "";
-      modelSelect.disabled = false;
+      handleModelsLoaded(message);
+      break;
 
-      if (message.models.length === 0) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "No models found";
-        modelSelect.appendChild(opt);
+    case "providerAdded":
+      handleProviderAdded(message.provider);
+      break;
 
-        const fragment = cloneTemplate("tpl-empty-state");
-        fragment.querySelector(".empty-state").textContent =
-          "No Ollama models found. Make sure Ollama is running and you have models installed.";
-        content.appendChild(fragment);
-      } else {
-        for (const model of message.models) {
-          const option = document.createElement("option");
-          option.value = model;
-          option.textContent = model;
-          modelSelect.appendChild(option);
-        }
-        if (modelSelect.value) {
-          vscode.postMessage({
-            type: "modelSelected",
-            model: modelSelect.value,
-          });
-        }
-      }
+    case "providerRemoved":
+      handleProviderRemoved(message.providerId);
+      break;
+
+    case "providerError":
+      handleProviderError(message.error);
       break;
 
     case "codeContext": {
@@ -142,6 +218,86 @@ window.addEventListener("message", (event) => {
     }
   }
 });
+
+function handleModelsLoaded(message) {
+  currentModels = message.models;
+  selectedProviderId = message.selectedProviderId || "";
+
+  modelSelect.innerHTML = "";
+  modelSelect.disabled = false;
+
+  if (message.models.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No models found";
+    modelSelect.appendChild(opt);
+
+    const fragment = cloneTemplate("tpl-empty-state");
+    fragment.querySelector(".empty-state").textContent =
+      "No models found. Make sure Ollama is running or add a custom provider below.";
+    content.appendChild(fragment);
+  } else {
+    // Group models by provider
+    let currentGroup = null;
+
+    for (const model of message.models) {
+      const option = document.createElement("option");
+      option.value = `${model.providerId}:${model.model}`;
+      option.textContent = model.displayName;
+      option.dataset.providerId = model.providerId;
+      option.dataset.model = model.model;
+      modelSelect.appendChild(option);
+
+      // Select the current model
+      if (
+        message.selectedProviderId === model.providerId &&
+        message.selectedModel === model.model
+      ) {
+        option.selected = true;
+      }
+    }
+
+    // If nothing selected, select first option
+    if (modelSelect.value && message.selectedProviderId) {
+      vscode.postMessage({
+        type: "modelSelected",
+        providerId: modelSelect.options[modelSelect.selectedIndex].dataset.providerId,
+        model: modelSelect.options[modelSelect.selectedIndex].dataset.model,
+      });
+    }
+  }
+}
+
+function handleProviderAdded(provider) {
+  resetAddProviderForm();
+  // Collapse the add provider section
+  addProviderSection.classList.add("collapsed");
+  document.getElementById("add-provider-icon").classList.add("collapsed");
+}
+
+function handleProviderRemoved(providerId) {
+  // Remove the provider from the select options
+  const options = Array.from(modelSelect.options);
+  for (const option of options) {
+    if (option.dataset.providerId === providerId) {
+      option.remove();
+    }
+  }
+
+  // If no options left, show empty state
+  if (modelSelect.options.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No models found";
+    modelSelect.appendChild(opt);
+  }
+}
+
+function handleProviderError(error) {
+  showAddProviderError(error);
+  addProviderButton.disabled = false;
+  addProviderButton.textContent = "Add Model";
+}
 
 function updateExplanation() {
   const loadingDiv = document.querySelector(".loading");

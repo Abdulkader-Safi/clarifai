@@ -1,8 +1,8 @@
 {
   "name": "clarif-ai",
   "displayName": "ClarifAI",
-  "description": "",
-  "version": "0.0.2",
+  "description": "AI code explainer supporting Ollama and OpenAI-compatible APIs",
+  "version": "0.1.0",
   "publisher": "AbdulkaderSafi",
   "author": {
     "name": "Safi",
@@ -19,12 +19,15 @@
   "keywords": [
     "code explanation",
     "ollama",
+    "ollama claud",
     "ai",
     "code assistant",
     "llm",
     "local ai",
     "code analysis",
-    "developer tools"
+    "developer tools",
+    "openai",
+    "openai-compatible"
   ],
   "categories": [
     "Machine Learning",
@@ -38,20 +41,21 @@
     "commands": [
       {
         "command": "ollamaExplainer.explainCode",
-        "title": "Explain Code with Ollama"
+        "title": "Explain Code with ClarifAI",
+        "icon": "$(hubot)"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "ollama-explainer",
-          "title": "Ollama Code Explainer",
+          "id": "clarifai-explainer",
+          "title": "ClarifAI",
           "icon": "$(hubot)"
         }
       ]
     },
     "views": {
-      "ollama-explainer": [
+      "clarifai-explainer": [
         {
           "type": "webview",
           "id": "ollamaExplainer",
@@ -59,6 +63,48 @@
           "icon": "$(hubot)"
         }
       ]
+    },
+    "configuration": {
+      "title": "ClarifAI",
+      "properties": {
+        "clarifai.customProviders": {
+          "type": "array",
+          "default": [],
+          "description": "Custom OpenAI-compatible LLM providers",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "baseUrl": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "providerType": {
+                "type": "string",
+                "enum": [
+                  "ollama",
+                  "openai-compatible"
+                ]
+              },
+              "requiresApiKey": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "clarifai.selectedProvider": {
+          "type": "string",
+          "default": "",
+          "description": "ID of the currently selected provider"
+        }
+      }
     }
   },
   "scripts": {
